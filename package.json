@@ -1,0 +1,119 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "pangram-ai-detector",
+  "title": "Pangram AI Detector",
+  "description": "Check selected text for AI-generated content with Pangram, segment by segment.",
+  "icon": "icon.png",
+  "author": "tenequm",
+  "categories": [
+    "Productivity"
+  ],
+  "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "commands": [
+    {
+      "name": "check-selection",
+      "title": "Check Selection for AI",
+      "subtitle": "Pangram",
+      "description": "Runs Pangram AI detection on the text selected in the frontmost app.",
+      "mode": "view"
+    }
+  ],
+  "tools": [
+    {
+      "name": "detect-ai",
+      "title": "Detect AI Text",
+      "description": "Scores a piece of text for AI authorship with Pangram and returns the verdict, the AI/AI-assisted/human fractions, and a per-segment breakdown including whether each segment looks humanized."
+    }
+  ],
+  "preferences": [
+    {
+      "name": "apiKey",
+      "title": "Pangram API Key",
+      "description": "Your Pangram API key. Create one at pangram.com.",
+      "type": "password",
+      "required": true
+    },
+    {
+      "name": "model",
+      "title": "Model",
+      "description": "A model selector from Pangram's GET /models. pangram-4 is the only model that reports humanized text. Use 'default' if your API key has no pangram-4 access.",
+      "type": "textfield",
+      "default": "pangram-4",
+      "required": false
+    },
+    {
+      "name": "dashboardLink",
+      "label": "Request a Pangram dashboard link",
+      "description": "Asks Pangram for a shareable link to the full result. Turn off to keep checks off the dashboard.",
+      "type": "checkbox",
+      "default": true,
+      "required": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.1.1",
+    "@raycast/utils": "^2.3.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^9.0.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "ai": {
+    "evals": [
+      {
+        "input": "@pangram-ai-detector Is this paragraph AI written? \"In today's rapidly evolving digital landscape, organizations must leverage cutting-edge solutions to remain competitive and drive meaningful outcomes across the value chain.\"",
+        "mocks": {
+          "detect-ai": {
+            "verdict": "AI",
+            "headline": "AI Generated",
+            "explanation": "We believe that this entire text is AI.",
+            "fractions": {
+              "ai": 1,
+              "ai_assisted": 0,
+              "human": 0
+            },
+            "segment_counts": {
+              "ai": 1,
+              "ai_assisted": 0,
+              "human": 0
+            },
+            "humanized_segments": 0,
+            "flagged_segments": [
+              {
+                "label": "AI-Generated",
+                "ai_assistance_score": 0.9999,
+                "confidence": "High",
+                "is_humanized": false,
+                "humanizer_score": 0.029,
+                "text": "In today's rapidly evolving digital landscape, organizations must leverage cutting-edge solutions to remain competitive and drive meaningful outcomes across the value chain."
+              }
+            ],
+            "pangram_version": "4.0"
+          }
+        },
+        "expected": [
+          {
+            "callsTool": "detect-ai"
+          }
+        ]
+      }
+    ]
+  }
+}
