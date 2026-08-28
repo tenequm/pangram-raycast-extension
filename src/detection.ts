@@ -45,15 +45,25 @@ export async function readInput(allowClipboard: boolean): Promise<{ text: string
 }
 
 /**
+ * A selection taken out of a browser comes back with its paragraph breaks deleted rather
+ * than replaced, gluing the end of one paragraph to the start of the next ("dashboard.It's").
+ * Sentence punctuation followed immediately by a capital, with no space at all, is the
+ * fingerprint of that deletion - ordinary prose always has a space there - so put the
+ * break back. Lowercase after the dot (URLs like "DEV.to") and digits are left alone.
+ */
+const restoreParagraphBreaks = (text: string) => text.replace(/([.!?…]["'’)\]]?)(?=[A-Z])/g, "$1\n\n");
+
+/**
  * Markdown syntax is not prose. Leaving it in both skews the score and pushes the window
  * offsets out of line with the sentences they are supposed to mark.
  */
 export function prepareText(raw: string, strip: boolean): string {
+  const restored = restoreParagraphBreaks(raw);
   if (!strip) {
-    return raw;
+    return restored;
   }
 
-  return removeMarkdown(raw, { stripListLeaders: true, gfm: true, useImgAltText: false })
+  return removeMarkdown(restored, { stripListLeaders: true, gfm: true, useImgAltText: false })
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+/g, " ")
     .replace(/^ | $/gm, "")
