@@ -16,8 +16,25 @@
     {
       "name": "check-selection",
       "title": "Check Selection for AI",
-      "subtitle": "Pangram",
-      "description": "Runs Pangram AI detection on the text selected in the frontmost app.",
+      "description": "Runs Pangram AI detection on the text selected in the frontmost app and shows the full report.",
+      "mode": "view"
+    },
+    {
+      "name": "annotate-selection",
+      "title": "Annotate Selection",
+      "description": "Shows the selected text with the AI-generated and AI-assisted passages marked in place.",
+      "mode": "view"
+    },
+    {
+      "name": "quick-check",
+      "title": "Quick Check Selection",
+      "description": "Checks the selected text and shows only the verdict as a HUD, without opening a window.",
+      "mode": "no-view"
+    },
+    {
+      "name": "search-history",
+      "title": "Search Detection History",
+      "description": "Browses previous detection results, so revisions of the same text can be compared.",
       "mode": "view"
     }
   ],
@@ -32,35 +49,39 @@
     {
       "name": "apiKey",
       "title": "Pangram API Key",
-      "description": "Your Pangram API key. Create one at pangram.com.",
+      "description": "Your Pangram API key. The key needs access to the pangram-4 model.",
       "type": "password",
       "required": true
     },
     {
-      "name": "model",
-      "title": "Model",
-      "description": "A model selector from Pangram's GET /models. pangram-4 is the only model that reports humanized text. Use 'default' if your API key has no pangram-4 access.",
-      "type": "textfield",
-      "default": "pangram-4",
+      "name": "stripMarkdown",
+      "title": "Markdown",
+      "label": "Strip Markdown Before Checking",
+      "description": "Removes headings, emphasis, link syntax and list markers so Pangram scores your prose rather than the formatting.",
+      "type": "checkbox",
+      "default": true,
       "required": false
     },
     {
       "name": "dashboardLink",
-      "label": "Request a Pangram dashboard link",
-      "description": "Asks Pangram for a shareable link to the full result. Turn off to keep checks off the dashboard.",
+      "title": "Dashboard",
+      "label": "Request a Shareable Pangram Link",
+      "description": "Asks Pangram for a public dashboard link to each result. Off by default: turning it on publishes a link to the analyzed text.",
       "type": "checkbox",
-      "default": true,
+      "default": false,
       "required": false
     }
   ],
   "dependencies": {
     "@raycast/api": "^2.1.1",
-    "@raycast/utils": "^2.3.0"
+    "@raycast/utils": "^2.3.0",
+    "remove-markdown": "^0.6.4"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^2.0.4",
+    "@raycast/eslint-config": "^2.2.0",
     "@types/node": "22.19.17",
     "@types/react": "19.0.10",
+    "@types/remove-markdown": "^0.3.4",
     "eslint": "^9.0.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.3"

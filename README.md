@@ -2,7 +2,13 @@
 
 A Raycast extension that runs [Pangram](https://www.pangram.com/) AI detection on whatever text you have selected, from anywhere on macOS.
 
-Select text in any app, press your hotkey, and get the verdict, the AI / AI-assisted / human split, and the passages that tripped the detector. Works in Chrome, where Pangram's own extension only exposes a right-click menu item that Chrome cannot bind to a shortcut.
+Select text in any app, press your hotkey, and get the verdict, the AI / AI-assisted / human split, which passages tripped the detector, and whether any of them look **humanized** (AI output run through a paraphrasing tool). Works in Chrome, where Pangram's own extension only offers a right-click menu item that Chrome cannot bind to a keyboard shortcut.
+
+## What it sends where
+
+The text you select is sent to Pangram's API for analysis. Nothing else leaves your machine, and nothing is sent anywhere else.
+
+The **Request a Shareable Pangram Link** preference is **off** by default. Turning it on asks Pangram to publish a dashboard page for each result, which means a link to the analyzed text exists outside your machine. Leave it off unless you want to share results.
 
 ## Setup
 
@@ -12,33 +18,41 @@ Select text in any app, press your hotkey, and get the verdict, the AI / AI-assi
    npm install && npm run dev
    ```
 
-2. Open Raycast, find **Check Selection for AI**, and paste your Pangram API key when prompted.
+2. Open Raycast, run **Check Selection for AI**, and paste your Pangram API key when prompted.
 3. Assign a hotkey: select the command in Root Search, press `⌘K`, choose **Configure Command**, then **Set Hotkey**.
 4. Grant Raycast the Accessibility permission when macOS asks. That is what lets the extension read the selection from the frontmost app.
+
+Your API key needs access to the **pangram-4** model. The extension pins it, because `default` currently resolves to Pangram 3.3.2, whose response carries no `is_humanized` or `humanizer_score`, and humanized-text detection is the point of this extension. A key without pangram-4 access gets a clear 403 message rather than silently worse results.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| **Check Selection for AI** | Full report: verdict, meter, flagged passages with scores, metadata panel |
+| **Annotate Selection** | Your text rebuilt with AI passages in **bold** and AI-assisted ones in _italic_ |
+| **Quick Check Selection** | Verdict as a HUD, no window. The one to bind for quick passes over other people's text |
+| **Search Detection History** | The last 25 checks, so revisions of the same draft can be compared |
 
 ## Preferences
 
 | Preference | Default | Notes |
 |---|---|---|
-| Pangram API Key | - | Required. Stored by Raycast as a password preference. |
-| Model | `pangram-4` | A selector from Pangram's `GET /models`. See the note below. |
-| Request a Pangram dashboard link | on | Adds an **Open in Pangram** action linking to the full result. Turn off to keep checks off the dashboard. |
-
-### Why the model default is `pangram-4`, not `default`
-
-`default` currently resolves to Pangram 3.3.2, which does **not** return the humanizer fields. Only `pangram-4` returns `is_humanized` and `humanizer_score` per segment, which is the whole point if you are checking text that has been through a humanizer tool.
-
-Pangram's model catalog is entitlement-aware, so if your API key has no `pangram-4` access the extension will show a 403 with instructions to set the preference back to `default`. On older models the metadata panel says "Not reported by 3.3.2" rather than claiming there were no humanized segments, because those are different statements.
+| Pangram API Key | - | Required. Stored by Raycast as a password preference, never in the Keychain or on disk in plain text. |
+| Strip Markdown Before Checking | on | Removes headings, emphasis, link syntax and list markers before sending. |
+| Request a Shareable Pangram Link | off | See "What it sends where" above. |
 
 ## Behaviour worth knowing
 
-- **Selection first, clipboard as fallback.** If the frontmost app exposes no selection, the extension analyzes the clipboard instead and tells you which source it used in the metadata panel.
-- **Results are cached for 24 hours** per (text, model, dashboard-link) combination, because Pangram bills per call. **Check Again Without Cache** (`⌘R`) forces a fresh call.
-- **Short text produces one segment.** A ~110 word sample comes back as a single window, so the per-segment breakdown only becomes useful on longer passages. That is Pangram's windowing, not something this extension does.
+- **Selection first, clipboard as fallback.** If the frontmost app exposes no selection, the extension analyzes the clipboard instead and says so in the metadata panel.
+- **Markdown stripping matters more than it sounds.** Raw `**bold**`, link syntax and list markers are not prose. Leaving them in skews the score and pushes the segment offsets out of line with the sentences they mark. On by default; turn it off if you are deliberately checking raw markup.
+- **Results are cached for 24 hours** per (text, dashboard-link) pair, because Pangram bills per call. **Check Again Without Cache** (`⌘R`) forces a fresh call.
+- **Short text is rejected locally** below 50 characters, so you do not pay for a call that Pangram would refuse.
+- **Short text produces one segment.** A ~110 word sample comes back as a single window, so the per-segment breakdown only earns its keep on longer passages. That is Pangram's own windowing, not something this extension does.
+- **History keys on the text**, so re-checking an unchanged draft updates one entry instead of piling up duplicates. Each revision gets its own entry.
 
 ## AI tool
 
-The extension also ships a `detect-ai` tool, so you can use it from Raycast AI Chat:
+The extension ships a `detect-ai` tool, so it works from Raycast AI Chat:
 
 ```
 @pangram-ai-detector is this paragraph AI written?
@@ -53,6 +67,12 @@ npm run dev     # hot-reloading development mode
 npm run lint    # ESLint + Prettier via ray lint
 npm run build   # distribution build with full type checking
 ```
+
+The `allowScripts` block in `package.json` is npm 11's install-script gate. It has to stay: without it esbuild's postinstall never runs, its platform binary is missing, and `ray build` fails on a fresh clone.
+
+## Prior art
+
+[ryansb/raycast-pangram](https://github.com/raycast/extensions/pull/28732) got there first with a Pangram extension that stalled in review before it was merged. The markdown-stripping step and the inline annotated rendering are their ideas, reimplemented here. Their version is MIT licensed.
 
 ## License
 

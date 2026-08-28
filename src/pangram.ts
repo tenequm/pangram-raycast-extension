@@ -1,7 +1,15 @@
-import { getPreferenceValues } from "@raycast/api";
+import { captureException, getPreferenceValues } from "@raycast/api";
 import { withCache } from "@raycast/utils";
 
 const BASE_URL = "https://text.external-api.pangram.com";
+
+/**
+ * Pinned deliberately. Pangram's `default` selector currently resolves to 3.3.2, whose
+ * windows carry no `is_humanized` / `humanizer_score`, and detecting humanized text is
+ * the reason this extension exists.
+ */
+export const MODEL = "pangram-4";
+
 const POLL_INTERVAL_MS = 1200;
 const TIMEOUT_MS = 90_000;
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -15,12 +23,13 @@ export type DetectionWindow = {
   end_index: number;
   word_count: number;
   token_length: number;
-  is_humanized?: boolean;
-  humanizer_score?: number;
+  is_humanized: boolean;
+  humanizer_score: number;
 };
 
 export type Detection = {
   stage: string;
+  /** Pangram's normalized copy of the input. All window offsets index into this. */
   text: string;
   version: string;
   headline: string;
@@ -36,11 +45,13 @@ export type Detection = {
   windows: DetectionWindow[];
 };
 
-type Preferences = {
+export type Preferences = {
   apiKey: string;
-  model: string;
+  stripMarkdown: boolean;
   dashboardLink: boolean;
 };
+
+export const getPreferences = () => getPreferenceValues<Preferences>();
 
 /** Pangram documents its own status codes; turn them into something a user can act on. */
 function describeStatus(status: number, body: string): string {
@@ -50,34 +61,34 @@ function describeStatus(status: number, body: string): string {
     case 402:
       return "The Pangram account is out of credits.";
     case 403:
-      return "That model is not enabled for this API key. Clear the Model preference to fall back to the default.";
+      return `This API key has no access to ${MODEL}. Ask Pangram to enable it, or the humanized-text detection this extension relies on is unavailable.`;
     case 413:
-      return "The text is too large for one Pangram request.";
+      return "The text is too large for one Pangram request. Check a shorter passage.";
     case 422:
-      return "Pangram could not process this text or model selector. Very short selections are often rejected.";
+      return "Pangram could not process this text. Very short selections are often rejected.";
     case 429:
       return "Rate limited by Pangram. Wait a moment and try again.";
     case 503:
-      return "The selected Pangram model is temporarily unavailable.";
+      return `${MODEL} is temporarily unavailable at Pangram.`;
     default:
       return `Pangram returned ${status}${body ? `: ${body.slice(0, 200)}` : ""}`;
   }
 }
 
-async function request<T>(
-  path: string,
-  apiKey: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: { "x-api-key": apiKey, ...(init.headers ?? {}) },
-  });
+async function request<T>(path: string, apiKey: string, init: RequestInit = {}): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: { "x-api-key": apiKey, ...(init.headers ?? {}) },
+    });
+  } catch (error) {
+    captureException(error);
+    throw new Error("Could not reach Pangram. Check your network connection.");
+  }
 
   if (!response.ok) {
-    throw new Error(
-      describeStatus(response.status, await response.text().catch(() => "")),
-    );
+    throw new Error(describeStatus(response.status, await response.text().catch(() => "")));
   }
 
   return (await response.json()) as T;
@@ -90,21 +101,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Reads the API key from preferences rather than taking it as an argument, so the key
  * never ends up in a `withCache` cache key on disk.
  */
-async function detect(
-  text: string,
-  model: string,
-  dashboardLink: boolean,
-): Promise<Detection> {
-  const { apiKey } = getPreferenceValues<Preferences>();
+async function detect(text: string, dashboardLink: boolean): Promise<Detection> {
+  const { apiKey } = getPreferences();
 
   const { task_id } = await request<{ task_id: string }>("/task", apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      model: model.trim() || "default",
-      public_dashboard_link: dashboardLink,
-    }),
+    body: JSON.stringify({ text, model: MODEL, public_dashboard_link: dashboardLink }),
   });
 
   const deadline = Date.now() + TIMEOUT_MS;
@@ -125,24 +128,13 @@ async function detect(
 
 /**
  * Detection is billed per call, so identical text is served from Raycast's cache for a day.
- * Model and dashboard-link settings are arguments because they are part of the cache key.
+ * The dashboard-link setting is an argument because it is part of the cache key.
  */
 export const detectCached = withCache(detect, {
   maxAge: CACHE_MAX_AGE_MS,
   validate: (detection) => detection.stage === "STAGE_SUCCESS",
 });
 
-export function detectWithPreferences(text: string) {
-  const { model, dashboardLink } = getPreferenceValues<Preferences>();
-  return detectCached(text, model ?? "default", dashboardLink ?? true);
-}
+export const isFlagged = (window: DetectionWindow) => window.label !== "Human Written";
 
-export const isFlagged = (window: DetectionWindow) =>
-  window.label !== "Human Written";
-
-/**
- * Only Pangram 4 returns the humanizer head's output. On older models the fields are
- * absent, which must not be rendered as "no humanized segments" - that is a different claim.
- */
-export const reportsHumanizer = (detection: Detection) =>
-  detection.windows.some((window) => window.is_humanized !== undefined);
+export const humanizedWindows = (detection: Detection) => detection.windows.filter((window) => window.is_humanized);

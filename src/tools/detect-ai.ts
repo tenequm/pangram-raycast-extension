@@ -1,9 +1,10 @@
-import { detectWithPreferences, isFlagged, reportsHumanizer } from "../pangram";
+import { prepareText } from "../detection";
+import { detectCached, getPreferences, humanizedWindows, isFlagged } from "../pangram";
 
 type Input = {
   /**
-   * The text to score for AI authorship. Pass at least a full paragraph: Pangram's
-   * confidence drops sharply on very short inputs.
+   * The text to score for AI authorship. Pass at least a full paragraph of plain prose:
+   * Pangram's confidence drops sharply on very short inputs.
    */
   text: string;
 };
@@ -13,7 +14,8 @@ type Input = {
  * model gets the verdict and the flagged passages without the full window dump.
  */
 export default async function detectAi(input: Input) {
-  const detection = await detectWithPreferences(input.text);
+  const { stripMarkdown, dashboardLink } = getPreferences();
+  const detection = await detectCached(prepareText(input.text, stripMarkdown), dashboardLink);
 
   return {
     verdict: detection.prediction_short,
@@ -29,14 +31,13 @@ export default async function detectAi(input: Input) {
       ai_assisted: detection.num_ai_assisted_segments,
       human: detection.num_human_segments,
     },
-    humanized_segments: reportsHumanizer(detection)
-      ? detection.windows.filter((window) => window.is_humanized).length
-      : "not reported by this Pangram model, only pangram-4 detects humanized text",
+    humanized_segments: humanizedWindows(detection).length,
     flagged_segments: detection.windows.filter(isFlagged).map((window) => ({
       label: window.label,
       ai_assistance_score: window.ai_assistance_score,
       confidence: window.confidence,
-      is_humanized: window.is_humanized ?? false,
+      word_count: window.word_count,
+      is_humanized: window.is_humanized,
       humanizer_score: window.humanizer_score,
       text: window.text.trim().replace(/\s+/g, " ").slice(0, 300),
     })),
