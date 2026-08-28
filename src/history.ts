@@ -12,6 +12,8 @@ export type HistoryEntry = {
   source: string;
   wordCount: number;
   detection: Detection;
+  /** Optional: entries written before this field existed fall back to Pangram's copy. */
+  sentText?: string;
 };
 
 export const entryId = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);

@@ -14,7 +14,7 @@ export default function Command() {
   const detection = data?.detection;
 
   const markdown = detection
-    ? buildAnnotated(detection)
+    ? buildAnnotated(detection, data?.sentText)
     : error
       ? `# Could not check this text\n\n${error.message}`
       : "Checking with Pangram…";
@@ -37,7 +37,7 @@ export default function Command() {
             <Action.OpenInBrowser title="Open in Pangram" url={detection.dashboard_link} icon={Icon.Globe} />
           ) : null}
           {detection ? (
-            <Action.CopyToClipboard title="Copy Annotated Text" content={buildAnnotated(detection)} />
+            <Action.CopyToClipboard title="Copy Annotated Text" content={buildAnnotated(detection, data?.sentText)} />
           ) : null}
           <Action
             title="Check Again Without Cache"

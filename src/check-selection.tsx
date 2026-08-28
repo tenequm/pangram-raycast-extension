@@ -61,7 +61,9 @@ export default function Command() {
               <Action.Push
                 title="Show Annotated Text"
                 icon={Icon.Highlight}
-                target={<Detail markdown={buildAnnotated(detection)} navigationTitle="Annotated Text" />}
+                target={
+                  <Detail markdown={buildAnnotated(detection, data?.sentText)} navigationTitle="Annotated Text" />
+                }
               />
             ) : null}
             {detection?.dashboard_link ? (

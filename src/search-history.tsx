@@ -37,7 +37,10 @@ export default function Command() {
                   title="Show Annotated Text"
                   icon={Icon.Highlight}
                   target={
-                    <Detail markdown={buildAnnotated(entry.detection)} navigationTitle={entry.detection.headline} />
+                    <Detail
+                      markdown={buildAnnotated(entry.detection, entry.sentText)}
+                      navigationTitle={entry.detection.headline}
+                    />
                   }
                 />
                 <Action.CopyToClipboard title="Copy Report" content={buildReport(entry.detection)} />

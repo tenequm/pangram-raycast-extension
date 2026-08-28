@@ -18,20 +18,16 @@ export function verdictColor(detection: Detection): Color {
   }
 }
 
-/** A block bar plus the exact split, so the shape of the result reads at a glance. */
+/** The verdict plus the one number that matters: how much of this reads as AI. */
+export const title = (detection: Detection) => `${detection.headline} · ${percent(detection.fraction_ai)} AI`;
+
+/** Proportions at a glance. Exact figures live in the metadata panel, not here. */
 export function meter(detection: Detection): string {
   const human = Math.round(detection.fraction_human * METER_BLOCKS);
   const assisted = Math.round(detection.fraction_ai_assisted * METER_BLOCKS);
   const ai = Math.max(0, METER_BLOCKS - human - assisted);
-  const exact = (value: number) => `${(value * 100).toFixed(1)}%`;
 
-  return [
-    "🟩".repeat(human) + "🟨".repeat(assisted) + "🟥".repeat(ai),
-    "",
-    "| 🟩 Human | 🟨 AI-Assisted | 🟥 AI |",
-    "| :---: | :---: | :---: |",
-    `| ${exact(detection.fraction_human)} | ${exact(detection.fraction_ai_assisted)} | ${exact(detection.fraction_ai)} |`,
-  ].join("\n");
+  return "🟩".repeat(human) + "🟨".repeat(assisted) + "🟥".repeat(ai);
 }
 
 function describeWindow(window: DetectionWindow): string {
@@ -57,7 +53,7 @@ export function buildReport(detection: Detection): string {
   const flagged = detection.windows.filter(isFlagged);
   const humanized = humanizedWindows(detection);
 
-  const sections = [`# ${detection.headline}`, "", detection.prediction, "", meter(detection), ""];
+  const sections = [`# ${title(detection)}`, "", meter(detection), ""];
 
   if (humanized.length > 0) {
     sections.push(
@@ -102,26 +98,58 @@ function annotate(segment: string, label: string): string {
 }
 
 /**
- * Rebuilds the analyzed text with each window marked in place. Offsets index into
- * `detection.text` (Pangram's normalized copy), and windows can overlap, so the cursor
- * only ever moves forward.
+ * Window offsets index into Pangram's normalized copy, which has the line breaks stripped.
+ * Rendering from that copy loses every paragraph and glues sentences together, so instead
+ * map each offset back onto the text we sent by counting non-whitespace characters, which
+ * both copies share in the same order.
  */
-export function buildAnnotated(detection: Detection): string {
-  const text = detection.text;
+function offsetMapper(sent: string, normalized: string): (index: number) => number {
+  const sentPositions: number[] = [];
+  for (let i = 0; i < sent.length; i++) {
+    if (!/\s/.test(sent[i])) {
+      sentPositions.push(i);
+    }
+  }
+
+  const countBefore = new Array<number>(normalized.length + 1);
+  let seen = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    countBefore[i] = seen;
+    if (!/\s/.test(normalized[i])) {
+      seen++;
+    }
+  }
+  countBefore[normalized.length] = seen;
+
+  return (index: number) => {
+    const count = countBefore[Math.max(0, Math.min(index, normalized.length))] ?? 0;
+    return count < sentPositions.length ? sentPositions[count] : sent.length;
+  };
+}
+
+/**
+ * Rebuilds the text you sent, with each window marked in place and its own paragraph
+ * breaks intact. Windows can overlap, so the cursor only ever moves forward.
+ */
+export function buildAnnotated(detection: Detection, sentText?: string): string {
+  const text = sentText?.trim() ? sentText : detection.text;
+  const toSent = sentText?.trim() ? offsetMapper(text, detection.text) : (index: number) => index;
+
   const ordered = [...detection.windows].sort((a, b) => a.start_index - b.start_index);
   const pieces: string[] = [];
   let cursor = 0;
 
   for (const window of ordered) {
-    if (window.end_index <= cursor) {
+    const end = toSent(window.end_index);
+    if (end <= cursor) {
       continue;
     }
-    const start = Math.max(cursor, window.start_index);
+    const start = Math.max(cursor, toSent(window.start_index));
     if (start > cursor) {
       pieces.push(escapeMarkdown(text.slice(cursor, start)));
     }
-    pieces.push(annotate(escapeMarkdown(text.slice(start, window.end_index)), window.label));
-    cursor = window.end_index;
+    pieces.push(annotate(escapeMarkdown(text.slice(start, end)), window.label));
+    cursor = end;
   }
 
   if (cursor < text.length) {
@@ -129,7 +157,7 @@ export function buildAnnotated(detection: Detection): string {
   }
 
   return [
-    `**${detection.headline}** · **bold** is AI-generated, _italic_ is AI-assisted, plain is human.`,
+    `**${title(detection)}** · **bold** is AI-generated, _italic_ is AI-assisted, plain is human.`,
     "",
     "---",
     "",
@@ -140,7 +168,7 @@ export function buildAnnotated(detection: Detection): string {
 /** One line for the HUD, where there is room for the verdict and nothing else. */
 export function summaryLine(detection: Detection): string {
   const humanized = humanizedWindows(detection).length;
-  const parts = [detection.headline, `${percent(detection.fraction_ai)} AI`];
+  const parts = [title(detection)];
   if (detection.fraction_ai_assisted > 0) {
     parts.push(`${percent(detection.fraction_ai_assisted)} assisted`);
   }

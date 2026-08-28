@@ -16,6 +16,8 @@ export type DetectionRun = {
   detection: Detection;
   source: Source;
   wordCount: number;
+  /** What we actually sent, kept because Pangram's copy has the paragraph breaks stripped. */
+  sentText: string;
 };
 
 export const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
@@ -74,7 +76,7 @@ export async function runDetection(): Promise<DetectionRun> {
   const wordCount = assertProse(prepared);
 
   const detection = await detectCached(prepared, dashboardLink);
-  await rememberDetection({ detection, source, wordCount });
+  await rememberDetection({ detection, source, wordCount, sentText: prepared });
 
-  return { detection, source, wordCount };
+  return { detection, source, wordCount, sentText: prepared };
 }
