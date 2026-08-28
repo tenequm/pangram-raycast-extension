@@ -1,4 +1,4 @@
-import { prepareText } from "../detection";
+import { assertProse, prepareText } from "../detection";
 import { detectCached, getPreferences, humanizedWindows, isFlagged } from "../pangram";
 
 type Input = {
@@ -15,7 +15,10 @@ type Input = {
  */
 export default async function detectAi(input: Input) {
   const { stripMarkdown, dashboardLink } = getPreferences();
-  const detection = await detectCached(prepareText(input.text, stripMarkdown), dashboardLink);
+  const prepared = prepareText(input.text, stripMarkdown);
+  assertProse(prepared);
+
+  const detection = await detectCached(prepared, dashboardLink);
 
   return {
     verdict: detection.prediction_short,

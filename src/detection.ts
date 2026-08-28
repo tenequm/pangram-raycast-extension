@@ -3,8 +3,12 @@ import removeMarkdown from "remove-markdown";
 import { rememberDetection } from "./history";
 import { Detection, detectCached, getPreferences } from "./pangram";
 
-/** Pangram rejects very short inputs, and a paid call to be told so is a waste. */
-const MIN_CHARS = 50;
+/**
+ * Pangram scores prose, and its confidence collapses on fragments. Anything shorter is
+ * a paid call for a junk verdict, so it never leaves the machine. A single token - an
+ * API key pasted a moment ago, say - can therefore never reach the API.
+ */
+const MIN_WORDS = 12;
 
 export type Source = "selection" | "clipboard";
 
@@ -14,7 +18,9 @@ export type DetectionRun = {
   wordCount: number;
 };
 
-export async function readInput(): Promise<{ text: string; source: Source }> {
+export const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+export async function readInput(allowClipboard: boolean): Promise<{ text: string; source: Source }> {
   try {
     const selected = (await getSelectedText()).trim();
     if (selected) {
@@ -22,6 +28,10 @@ export async function readInput(): Promise<{ text: string; source: Source }> {
     }
   } catch {
     // The frontmost app exposes no selection; fall through to the clipboard.
+  }
+
+  if (!allowClipboard) {
+    throw new Error("Nothing is selected. Select some text, or allow the clipboard fallback in preferences.");
   }
 
   const clipboard = (await Clipboard.readText())?.trim();
@@ -48,21 +58,22 @@ export function prepareText(raw: string, strip: boolean): string {
     .trim();
 }
 
-export const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+export function assertProse(text: string): number {
+  const wordCount = countWords(text);
+  if (wordCount < MIN_WORDS) {
+    throw new Error(`Pangram needs at least ${MIN_WORDS} words of prose to say anything useful. This is ${wordCount}.`);
+  }
+  return wordCount;
+}
 
 /** Read the selection, normalize it, score it, and remember the result. */
 export async function runDetection(): Promise<DetectionRun> {
-  const { stripMarkdown, dashboardLink } = getPreferences();
-  const { text, source } = await readInput();
+  const { stripMarkdown, clipboardFallback, dashboardLink } = getPreferences();
+  const { text, source } = await readInput(clipboardFallback ?? true);
   const prepared = prepareText(text, stripMarkdown);
-
-  if (prepared.length < MIN_CHARS) {
-    throw new Error(`Pangram needs at least ${MIN_CHARS} characters. Select a sentence or two more.`);
-  }
+  const wordCount = assertProse(prepared);
 
   const detection = await detectCached(prepared, dashboardLink);
-  const wordCount = countWords(prepared);
-
   await rememberDetection({ detection, source, wordCount });
 
   return { detection, source, wordCount };

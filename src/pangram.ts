@@ -48,6 +48,7 @@ export type Detection = {
 export type Preferences = {
   apiKey: string;
   stripMarkdown: boolean;
+  clipboardFallback: boolean;
   dashboardLink: boolean;
 };
 

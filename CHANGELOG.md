@@ -8,5 +8,6 @@
 - Search Detection History: the last 25 checks, keyed by text so revisions can be compared
 - Pinned to the pangram-4 model, the only one that reports humanized text
 - Optional Markdown stripping before analysis, on by default
+- Clipboard fallback is a preference, and input under 12 words is rejected before it reaches the API
 - 24-hour result cache, since Pangram bills per call
 - detect-ai AI tool for use from Raycast AI Chat, with one eval

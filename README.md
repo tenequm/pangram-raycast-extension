@@ -10,6 +10,11 @@ The text you select is sent to Pangram's API for analysis. Nothing else leaves y
 
 The **Request a Shareable Pangram Link** preference is **off** by default. Turning it on asks Pangram to publish a dashboard page for each result, which means a link to the analyzed text exists outside your machine. Leave it off unless you want to share results.
 
+Two more things worth knowing before you point this at anything sensitive:
+
+- **When nothing is selected, the command reads your clipboard** and sends that instead. That is what the **Check the Clipboard When Nothing Is Selected** preference controls. It is on by default because some apps hide their selection from macOS entirely, but it does mean an unattended hotkey press sends whatever you last copied. Turn it off and the command fails instead.
+- **Checked text is stored locally**, in plain text, in Raycast's local storage, so the History command can show it back to you. The last 25 checks are kept. **Clear History** (`⌃⇧X` in Search Detection History) wipes them.
+
 ## Setup
 
 1. Install dependencies and start the extension in development mode:
@@ -39,6 +44,7 @@ Your API key needs access to the **pangram-4** model. The extension pins it, bec
 |---|---|---|
 | Pangram API Key | - | Required. Stored by Raycast as a password preference, never in the Keychain or on disk in plain text. |
 | Strip Markdown Before Checking | on | Removes headings, emphasis, link syntax and list markers before sending. |
+| Check the Clipboard When Nothing Is Selected | on | The fallback for apps that hide their selection. Off means the command fails instead of reading your clipboard. |
 | Request a Shareable Pangram Link | off | See "What it sends where" above. |
 
 ## Behaviour worth knowing
@@ -46,7 +52,7 @@ Your API key needs access to the **pangram-4** model. The extension pins it, bec
 - **Selection first, clipboard as fallback.** If the frontmost app exposes no selection, the extension analyzes the clipboard instead and says so in the metadata panel.
 - **Markdown stripping matters more than it sounds.** Raw `**bold**`, link syntax and list markers are not prose. Leaving them in skews the score and pushes the segment offsets out of line with the sentences they mark. On by default; turn it off if you are deliberately checking raw markup.
 - **Results are cached for 24 hours** per (text, dashboard-link) pair, because Pangram bills per call. **Check Again Without Cache** (`⌘R`) forces a fresh call.
-- **Short text is rejected locally** below 50 characters, so you do not pay for a call that Pangram would refuse.
+- **Short text is rejected locally** below 12 words, so you never pay for a call that returns a low-confidence verdict on a fragment. It also means a single token, such as an API key sitting on your clipboard, can never reach the API.
 - **Short text produces one segment.** A ~110 word sample comes back as a single window, so the per-segment breakdown only earns its keep on longer passages. That is Pangram's own windowing, not something this extension does.
 - **History keys on the text**, so re-checking an unchanged draft updates one entry instead of piling up duplicates. Each revision gets its own entry.
 

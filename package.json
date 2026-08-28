@@ -63,6 +63,15 @@
       "required": false
     },
     {
+      "name": "clipboardFallback",
+      "title": "Clipboard",
+      "label": "Check the Clipboard When Nothing Is Selected",
+      "description": "Apps that hide their selection from macOS need this. Turn it off if you would rather the command fail than analyze whatever you last copied.",
+      "type": "checkbox",
+      "default": true,
+      "required": false
+    },
+    {
       "name": "dashboardLink",
       "title": "Dashboard",
       "label": "Request a Shareable Pangram Link",

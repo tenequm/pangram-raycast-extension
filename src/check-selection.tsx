@@ -45,7 +45,7 @@ export default function Command() {
               text={`${detection.num_ai_segments} AI · ${detection.num_ai_assisted_segments} assisted · ${detection.num_human_segments} human`}
             />
             <Detail.Metadata.Separator />
-            <Detail.Metadata.Label title="Words" text={`${data?.wordCount ?? 0}`} />
+            <Detail.Metadata.Label title="Words Sent" text={`${data?.wordCount ?? 0}`} />
             <Detail.Metadata.Label title="Source" text={data?.source === "clipboard" ? "Clipboard" : "Selection"} />
             <Detail.Metadata.Label title="Model" text={`${MODEL} (${detection.version})`} />
             {detection.dashboard_link ? (
